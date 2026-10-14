@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseAI - Healthcare Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      box-sizing: border-box;
+    }
+    
+    /* Animations */
+    .typing-indicator { display: none; }
+    .typing-indicator.show { display: flex; }
+    
+    .dot { animation: typing 1.4s infinite ease-in-out; }
+    .dot:nth-child(1) { animation-delay: -0.32s; }
+    .dot:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes typing {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1.1); opacity: 1; }
+    }
+    
+    .message-enter { animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(1); opacity: 0.9; box-shadow: 0 0 15px rgba(20, 184, 166, 0.4); }
+      50% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 25px rgba(20, 184, 166, 0.7); }
+    }
+    .pulse-heart { animation: pulseGlow 2.5s infinite ease-in-out; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-15px); }
+    }
+    .animate-float { animation: float 4s ease-in-out infinite; }
+    
+    @keyframes blob {
+      0% { transform: translate(0px, 0px) scale(1); }
+      33% { transform: translate(30px, -50px) scale(1.1); }
+      66% { transform: translate(-20px, 20px) scale(0.9); }
+      100% { transform: translate(0px, 0px) scale(1); }
+    }
+    .animate-blob { animation: blob 7s infinite; }
+
+    .view-section { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Custom scrollbar */
+    .scrollbar::-webkit-scrollbar { width: 6px; }
+    .scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.3); border-radius: 9999px; }
+    .scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.5); }
+    
+    /* Utilities */
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen h-full flex flex-col antialiased selection:bg-teal-500 selection:text-white overflow-hidden">
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- AUTH VIEW (Creative Split Screen Login/SignUp) -->
+  <div id="authView" class="fixed inset-0 z-40 bg-white flex flex-col lg:flex-row transition-opacity duration-500">
+    
+    <!-- Left Side: Creative Intro (Hidden on small mobile, beautiful on desktop/tablet) -->
+    <div class="hidden md:flex flex-col justify-center items-center w-full lg:w-5/12 bg-slate-900 text-white relative overflow-hidden p-8 lg:p-12">
+      <!-- Decorative Background Elements -->
+      <div class="absolute top-0 left-0 w-72 h-72 bg-teal-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+      <div class="absolute top-0 right-0 w-72 h-72 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" style="animation-delay: 2s;"></div>
+      <div class="absolute -bottom-8 left-20 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" style="animation-delay: 4s;"></div>
+      
+      <!-- Intro Content -->
+      <div class="z-10 w-full max-w-md flex flex-col items-center text-center">
+        <div class="w-24 h-24 rounded-3xl bg-gradient-to-tr from-teal-400 to-emerald-400 flex items-center justify-center shadow-2xl mb-8 pulse-heart animate-float">
+          <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+          </svg>
+        </div>
+        <h1 class="text-4xl lg:text-5xl font-bold mb-4 tracking-tight">Your Health,<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-300">Elevated.</span></h1>
+        <p class="text-slate-300 text-lg mb-8 leading-relaxed">Experience the future of wellness with PulseAI. Track habits, explore fitness routines, and get intelligent health insights in one seamless platform.</p>
+        
+        <div class="w-full space-y-4 text-left bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center text-teal-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>
+            <span class="text-sm font-medium text-slate-200">24/7 AI Health Assistant</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>
+            <span class="text-sm font-medium text-slate-200">Personalized Wellness Profile</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>
+            <span class="text-sm font-medium text-slate-200">Explore Fitness & Habits</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Side: Forms -->
+    <div class="flex-1 flex items-center justify-center p-6 sm:p-12 bg-slate-50 relative">
+      <div class="w-full max-w-md">
+        
+        <!-- Mobile Header (Hidden on Desktop) -->
+        <div class="md:hidden flex flex-col items-center mb-8 text-center">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20 text-white font-bold mb-4 pulse-heart">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+          </div>
+          <h2 class="text-2xl font-bold text-slate-800">PulseAI Health</h2>
+          <p class="text-sm text-slate-500 mt-1">Your intelligent medical companion</p>
+        </div>
+
+        <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-100">
+          <h3 class="text-xl font-bold text-slate-800 mb-6 hidden md:block">Get Started</h3>
+          
+          <!-- Auth Tabs -->
+          <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6">
+            <button id="tabSignIn" class="py-2.5 rounded-lg bg-white text-teal-700 font-semibold text-sm flex-1 shadow-sm transition-all duration-200">Sign In</button>
+            <button id="tabSignUp" class="py-2.5 rounded-lg text-slate-500 font-medium text-sm flex-1 transition-all duration-200 hover:text-slate-800">Create Account</button>
+          </div>
+
+          <!-- Sign In Form -->
+          <form id="signInForm" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email Address</label>
+              <input id="signinEmail" type="email" placeholder="name@example.com" required class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-slate-50 focus:bg-white" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Password</label>
+              <input id="signinPassword" type="password" placeholder="••••••••" required class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-slate-50 focus:bg-white" />
+            </div>
+            
+            <p id="signinError" class="text-rose-500 text-xs font-medium hidden flex items-center gap-1">
+              <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span id="signinErrorText">Invalid credentials</span>
+            </p>
+
+            <div class="pt-4 flex flex-col gap-3">
+              <button type="submit" class="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold py-3 rounded-xl text-sm shadow-lg shadow-teal-500/25 transition-all duration-200 flex items-center justify-center gap-2 transform active:scale-[0.98]">
+                <span>Sign In to Dashboard</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+              </button>
+              
+              <button id="demoBtn" type="button" class="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 font-medium py-2.5 rounded-xl text-xs transition-all border border-slate-200 flex items-center justify-center gap-2">
+                <span>⚡ Instant Demo Login</span>
+              </button>
+            </div>
+          </form>
+
+          <!-- Sign Up Form -->
+          <form id="signUpForm" class="space-y-4 hidden">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Full Name</label>
+              <input id="signupName" type="text" placeholder="Dr. Alex Morgan" required class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-slate-50 focus:bg-white" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email Address</label>
+              <input id="signupEmail" type="email" placeholder="alex@example.com" required class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-slate-50 focus:bg-white" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Password</label>
+                <input id="signupPassword" type="password" placeholder="••••••••" required class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-slate-50 focus:bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Confirm</label>
+                <input id="signupConfirm" type="password" placeholder="••••••••" required class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-slate-50 focus:bg-white" />
+              </div>
+            </div>
+
+            <p id="signupError" class="text-rose-500 text-xs font-medium hidden flex items-center gap-1">
+              <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span id="signupErrorText">Validation error</span>
+            </p>
+
+            <div class="pt-4">
+              <button type="submit" class="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold py-3 rounded-xl text-sm shadow-lg shadow-teal-500/25 transition-all duration-200 transform active:scale-[0.98]">
+                Create Secure Account
+              </button>
+            </div>
+          </form>
+        </div>
+        <p class="text-center text-xs text-slate-400 mt-6">By continuing, you agree to PulseAI's Terms of Service and Privacy Policy.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP WRAPPER (Includes Side/Bottom Nav & Content Area) -->
+  <div id="app" class="flex-1 flex h-screen w-full hidden overflow-hidden relative">
+    
+    <!-- DESKTOP SIDE NAVIGATION -->
+    <nav class="hidden lg:flex flex-col w-24 bg-white border-r border-slate-200/80 py-6 items-center justify-between z-30 flex-shrink-0 shadow-sm">
+      <div class="flex flex-col items-center gap-8 w-full">
+        <!-- Logo -->
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20 text-white font-bold pulse-heart">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+        </div>
+        
+        <!-- Nav Links -->
+        <div class="flex flex-col gap-4 w-full px-4">
+          <button onclick="switchView('chat')" id="navChatBtn" class="nav-btn w-full aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 text-teal-600 bg-teal-50 transition-all group relative">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+            <span class="text-[10px] font-bold">Chat</span>
+          </button>
+          <button onclick="switchView('explore')" id="navExploreBtn" class="nav-btn w-full aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-teal-600 hover:bg-slate-50 transition-all group relative">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span class="text-[10px] font-bold">Explore</span>
+          </button>
+          <button onclick="switchView('profile')" id="navProfileBtn" class="nav-btn w-full aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-teal-600 hover:bg-slate-50 transition-all group relative">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            <span class="text-[10px] font-bold">Profile</span>
+          </button>
+        </div>
+      </div>
+      
+      <div class="px-4 w-full">
+        <button id="logoutBtn" title="Sign Out" class="w-full aspect-square rounded-2xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- CONTENT AREA -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden w-full bg-slate-50">
+      
+      <!-- Top Header -->
+      <header class="bg-white px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-slate-200/80 shadow-sm z-20 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <!-- Dynamic Avatar Display -->
+          <div id="headerAvatarContainer" class="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white font-bold text-lg flex items-center justify-center shadow-md shadow-teal-500/20 overflow-hidden relative">
+            <span id="avatarInitial">P</span>
+            <img id="headerAvatarImg" src="" class="absolute inset-0 w-full h-full object-cover hidden" alt="Profile">
+          </div>
+          <div>
+            <h1 id="appTitle" class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+              <span id="currentViewTitle">PulseAI Assistant</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wider">
+                ● Active
+              </span>
+            </h1>
+            <p id="subTitle" class="text-xs text-slate-500">Welcome back, User</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="speechToggleBtn" title="Toggle Speech Readout" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-50 text-slate-500 hover:text-teal-600 hover:bg-teal-50 text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-200">
+            <svg id="speechIcon" class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+            <span class="hidden sm:inline">Voice</span>
+          </button>
+          <button id="downloadData" title="Export Profile and Chat Data" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            <span class="hidden sm:inline">Export</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Views Container -->
+      <main class="flex-1 overflow-hidden relative pb-16 lg:pb-0"> <!-- pb-16 for mobile nav -->
+        
+        <!-- =================== VIEW 1: CHAT (Default) =================== -->
+        <div id="chatView" class="view-section absolute inset-0 flex p-2 sm:p-4 gap-4 h-full">
+          
+          <!-- Side Wellness Widget Panel (Hidden on small screens) -->
+          <aside class="hidden xl:flex flex-col w-80 gap-4 flex-shrink-0 h-full overflow-y-auto hide-scrollbar pb-4">
+            <!-- Daily Water Tracker -->
+            <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col gap-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                  <span class="text-sky-500 text-lg">💧</span> Daily Hydration
+                </h3>
+                <span id="waterGlassCount" class="text-xs font-extrabold text-sky-600 bg-sky-50 px-2 py-1 rounded-lg">4 / 8</span>
+              </div>
+              <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden shadow-inner">
+                <div id="waterProgressBar" class="bg-gradient-to-r from-sky-300 to-blue-500 h-full w-1/2 transition-all duration-500 ease-out"></div>
+              </div>
+              <div class="flex gap-2 mt-1">
+                <button onclick="adjustWater(-1)" class="w-10 h-10 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl text-lg font-medium transition-colors border border-slate-200 flex items-center justify-center shadow-sm">-</button>
+                <button onclick="adjustWater(1)" class="flex-1 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-blue-500/20">+ Add Glass</button>
+              </div>
+            </div>
+
+            <!-- Quick Wellness Checklist -->
+            <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col gap-3">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-1">
+                <span class="text-emerald-500 text-lg">📋</span> Daily Tips
+              </h3>
+              <div class="space-y-3 text-xs text-slate-600">
+                <div class="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-100/50">
+                  <strong class="text-emerald-800 block mb-1 text-[13px]">Hydration First</strong>
+                  Drink a glass of water right after waking up to boost metabolism.
+                </div>
+                <div class="p-3 rounded-2xl bg-amber-50/80 border border-amber-100/50">
+                  <strong class="text-amber-800 block mb-1 text-[13px]">20-20-20 Rule</strong>
+                  Look away from screen every 20 mins for 20 seconds at 20 ft distance.
+                </div>
+                <div class="p-3 rounded-2xl bg-indigo-50/80 border border-indigo-100/50">
+                  <strong class="text-indigo-800 block mb-1 text-[13px]">Sleep Routine</strong>
+                  Maintain consistent wake-up and bedtime hours for better sleep quality.
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <!-- Main Chat Area -->
+          <div class="flex-1 bg-white rounded-3xl border border-slate-200/80 shadow-sm flex flex-col overflow-hidden relative">
+            
+            <!-- Medical Disclaimer Banner -->
+            <div class="bg-amber-50/90 border-b border-amber-100 px-4 py-2.5 text-[11px] sm:text-xs text-amber-800 flex items-center gap-2 flex-shrink-0">
+              <svg class="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span><strong>Disclaimer:</strong> AI provides general information only. Not a substitute for professional medical advice.</span>
+            </div>
+
+            <!-- Messages Display Container -->
+            <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 scrollbar">
+              <!-- Messages dynamically injected here -->
+            </div>
+
+            <!-- Typing Indicator -->
+            <div id="typingIndicator" class="typing-indicator items-end gap-2 px-6 py-2 absolute bottom-24 left-0 z-10">
+              <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-500 flex items-center justify-center text-white shadow-md">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+              </div>
+              <div class="bg-white border border-slate-100 shadow-sm rounded-2xl rounded-bl-none px-4 py-3">
+                <div class="flex space-x-1.5 items-center">
+                  <div class="w-2 h-2 bg-teal-400 rounded-full dot"></div>
+                  <div class="w-2 h-2 bg-teal-400 rounded-full dot"></div>
+                  <div class="w-2 h-2 bg-teal-400 rounded-full dot"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Chat Controls & Form -->
+            <div class="p-3 sm:p-4 border-t border-slate-100 bg-white flex-shrink-0 z-20">
+              <!-- Quick Topic Pills -->
+              <div class="mb-3 flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar text-xs">
+                <span class="text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap mr-1">Ask:</span>
+                <button onclick="askQuestion('Hello, how can you help me today?')" class="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-teal-50 hover:text-teal-700 text-slate-600 font-medium whitespace-nowrap transition-colors border border-slate-200">👋 Say Hi</button>
+                <button onclick="askQuestion('What are common cold symptoms and home remedies?')" class="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-teal-50 hover:text-teal-700 text-slate-600 font-medium whitespace-nowrap transition-colors border border-slate-200">🤒 Cold & Flu</button>
+                <button onclick="askQuestion('What is the best way to improve skin health?')" class="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-teal-50 hover:text-teal-700 text-slate-600 font-medium whitespace-nowrap transition-colors border border-slate-200">✨ Skin Care</button>
+                <button onclick="askQuestion('How can I reduce daily stress and anxiety?')" class="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-teal-50 hover:text-teal-700 text-slate-600 font-medium whitespace-nowrap transition-colors border border-slate-200">🧘 Stress Relief</button>
+              </div>
+
+              <!-- Image Preview Area -->
+              <div id="imagePreviewContainer" class="hidden mb-3 relative inline-block">
+                <img id="imagePreview" src="" class="h-20 w-20 object-cover rounded-xl border border-slate-200 shadow-sm" />
+                <button type="button" onclick="clearImageSelection()" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-md hover:bg-rose-600 transition-colors">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </div>
+
+              <!-- Input Box Form -->
+              <form id="chatForm" class="flex gap-2 items-center">
+                <button type="button" onclick="document.getElementById('chatImageUpload').click()" class="p-3.5 rounded-2xl bg-slate-50 text-slate-500 hover:bg-teal-50 hover:text-teal-600 transition-all border border-slate-200 flex-shrink-0 shadow-inner active:scale-95" title="Analyze an image (Nutrition label, skin, etc.)">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </button>
+                <input type="file" id="chatImageUpload" accept="image/*" class="hidden" />
+
+                <input id="messageInput" type="text" placeholder="Describe a symptom, upload a photo, or ask a health question..." autocomplete="off"
+                  class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all shadow-inner" />
+                
+                <button type="submit" class="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-2xl px-5 py-3.5 font-bold text-sm transition-all shadow-lg shadow-teal-500/25 flex items-center justify-center gap-2 flex-shrink-0 active:scale-95">
+                  <span class="hidden sm:inline">Send</span>
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- =================== VIEW 2: EXPLORE =================== -->
+        <div id="exploreView" class="view-section hidden absolute inset-0 overflow-y-auto scrollbar p-4 sm:p-6 lg:p-8">
+          <div class="max-w-5xl mx-auto w-full">
+            <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Explore Wellness</h2>
+            <p class="text-sm text-slate-500 mb-8">Discover habits, routines, and guides for a healthier lifestyle.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              
+              <!-- Habit Card 1 -->
+              <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all group">
+                <div class="h-40 bg-gradient-to-br from-orange-400 to-rose-400 p-4 flex items-end relative overflow-hidden">
+                   <div class="absolute -right-4 -top-4 w-32 h-32 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                   <h3 class="text-white font-bold text-xl relative z-10">Morning Routine</h3>
+                </div>
+                <div class="p-5 flex flex-col gap-4">
+                  <p class="text-sm text-slate-600 line-clamp-3">Start your day right with a 15-minute stretching routine followed by mindfulness meditation to boost focus.</p>
+                  <button onclick="exploreToChat('Tell me about a healthy morning routine for focus and flexibility.')" class="w-full py-2.5 rounded-xl bg-slate-50 text-teal-600 font-bold text-xs border border-slate-200 hover:bg-teal-50 transition-colors">Ask AI About This</button>
+                </div>
+              </div>
+
+              <!-- Habit Card 2 -->
+              <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all group">
+                <div class="h-40 bg-gradient-to-br from-sky-400 to-indigo-500 p-4 flex items-end relative overflow-hidden">
+                   <div class="absolute -right-4 -top-4 w-32 h-32 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                   <h3 class="text-white font-bold text-xl relative z-10">Sleep Hygiene</h3>
+                </div>
+                <div class="p-5 flex flex-col gap-4">
+                  <p class="text-sm text-slate-600 line-clamp-3">Master your circadian rhythm. Learn how temperature, light, and timing affect your deep sleep cycles.</p>
+                  <button onclick="exploreToChat('How can I improve my sleep hygiene and get more deep sleep?')" class="w-full py-2.5 rounded-xl bg-slate-50 text-teal-600 font-bold text-xs border border-slate-200 hover:bg-teal-50 transition-colors">Ask AI About This</button>
+                </div>
+              </div>
+
+              <!-- Habit Card 3 -->
+              <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all group">
+                <div class="h-40 bg-gradient-to-br from-emerald-400 to-teal-600 p-4 flex items-end relative overflow-hidden">
+                   <div class="absolute -right-4 -top-4 w-32 h-32 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                   <h3 class="text-white font-bold text-xl relative z-10">Balanced Diet</h3>
+                </div>
+                <div class="p-5 flex flex-col gap-4">
+                  <p class="text-sm text-slate-600 line-clamp-3">Understand macronutrients and build plates that give you sustained energy throughout the day without crashes.</p>
+                  <button onclick="exploreToChat('What makes a perfectly balanced meal for sustained energy?')" class="w-full py-2.5 rounded-xl bg-slate-50 text-teal-600 font-bold text-xs border border-slate-200 hover:bg-teal-50 transition-colors">Ask AI About This</button>
+                </div>
+              </div>
+
+              <!-- Habit Card 4 -->
+              <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all group">
+                <div class="h-40 bg-gradient-to-br from-purple-400 to-pink-500 p-4 flex items-end relative overflow-hidden">
+                   <div class="absolute -right-4 -top-4 w-32 h-32 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                   <h3 class="text-white font-bold text-xl relative z-10">Mental Rest</h3>
+                </div>
+                <div class="p-5 flex flex-col gap-4">
+                  <p class="text-sm text-slate-600 line-clamp-3">Techniques to detach from digital overload, manage anxiety, and practice the 4-7-8 breathing method.</p>
+                  <button onclick="exploreToChat('Teach me the 4-7-8 breathing method to reduce anxiety.')" class="w-full py-2.5 rounded-xl bg-slate-50 text-teal-600 font-bold text-xs border border-slate-200 hover:bg-teal-50 transition-colors">Ask AI About This</button>
+                </div>
+              </div>
+              
+              <!-- Habit Card 5 -->
+              <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all group">
+                <div class="h-40 bg-gradient-to-br from-amber-400 to-orange-500 p-4 flex items-end relative overflow-hidden">
+                   <div class="absolute -right-4 -top-4 w-32 h-32 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                   <h3 class="text-white font-bold text-xl relative z-10">Vitamins & Gut</h3>
+                </div>
+                <div class="p-5 flex flex-col gap-4">
+                  <p class="text-sm text-slate-600 line-clamp-3">The connection between your gut microbiome and overall immunity. Learn which vitamins are essential.</p>
+                  <button onclick="exploreToChat('How does gut health affect immunity and which vitamins help?')" class="w-full py-2.5 rounded-xl bg-slate-50 text-teal-600 font-bold text-xs border border-slate-200 hover:bg-teal-50 transition-colors">Ask AI About This</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- =================== VIEW 3: PROFILE =================== -->
+        <div id="profileView" class="view-section hidden absolute inset-0 overflow-y-auto scrollbar p-4 sm:p-6 lg:p-8">
+          <div class="max-w-4xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Profile Info Column -->
+            <div class="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200">
+              <h2 class="text-2xl font-bold text-slate-800 mb-1">Your Profile</h2>
+              <p class="text-sm text-slate-500 mb-8">Manage your personal details and health metrics.</p>
+              
+              <div class="flex flex-col sm:flex-row gap-8 items-start mb-8">
+                <!-- Avatar Upload Section -->
+                <div class="flex flex-col items-center gap-3">
+                  <div class="relative group cursor-pointer">
+                    <div id="profileBigAvatar" class="w-28 h-28 rounded-3xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white font-bold text-4xl flex items-center justify-center shadow-lg overflow-hidden relative border-4 border-white">
+                      <span id="profileAvatarInitial">P</span>
+                      <img id="profileAvatarImg" src="" class="absolute inset-0 w-full h-full object-cover hidden" alt="Profile">
+                    </div>
+                    <!-- Hover overlay -->
+                    <div class="absolute inset-0 bg-slate-900/40 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm" onclick="document.getElementById('avatarInput').click()">
+                      <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </div>
+                    <input type="file" id="avatarInput" accept="image/*" class="hidden">
+                  </div>
+                  <button onclick="document.getElementById('avatarInput').click()" class="text-xs font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition-colors">Change Photo</button>
+                </div>
+                
+                <!-- Account Fields -->
+                <div class="flex-1 w-full space-y-4">
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Full Name</label>
+                    <input id="profileName" type="text" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-all" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email (Readonly)</label>
+                    <input id="profileEmail" type="text" readonly class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-100 text-slate-500 cursor-not-allowed" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Health Metrics Grid -->
+              <h3 class="text-sm font-bold text-slate-800 mb-4 border-t border-slate-100 pt-6">Health Metrics (Optional)</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Age</label>
+                  <input id="profileAge" type="number" placeholder="Years" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-all" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Height (cm)</label>
+                  <input id="profileHeight" type="number" placeholder="e.g. 175" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-all" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Weight (kg)</label>
+                  <input id="profileWeight" type="number" placeholder="e.g. 70" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-all" />
+                </div>
+              </div>
+
+              <div class="flex justify-end pt-4 border-t border-slate-100">
+                <button id="saveProfile" class="px-6 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white shadow-lg shadow-teal-500/20 transition-all active:scale-95">Save Profile</button>
+              </div>
+            </div>
+
+            <!-- Health Status Column (BMI) -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col h-full min-h-[300px]">
+              <div class="absolute top-0 right-0 w-48 h-48 bg-teal-500 rounded-full mix-blend-overlay filter blur-3xl opacity-30"></div>
+              
+              <h3 class="text-lg font-bold mb-1 relative z-10 flex items-center gap-2">
+                <span class="text-teal-400">⚖️</span> BMI Status
+              </h3>
+              <p class="text-xs text-slate-400 mb-6 relative z-10">Calculated from your saved metrics.</p>
+              
+              <div class="flex-1 flex flex-col items-center justify-center relative z-10">
+                <div id="bmiDisplayRing" class="w-32 h-32 rounded-full border-4 border-slate-700 flex flex-col items-center justify-center mb-4 transition-colors duration-500">
+                  <span id="bmiValueDisplay" class="text-3xl font-black text-white">--</span>
+                  <span class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Score</span>
+                </div>
+                <h4 id="bmiCategoryDisplay" class="text-lg font-bold text-white mb-2">Not Calculated</h4>
+                <p id="bmiAdviceDisplay" class="text-sm text-slate-400 text-center">Save your height and weight to see your Body Mass Index insights.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </main>
+    </div>
+    
+    <!-- MOBILE BOTTOM NAVIGATION (Hidden on Desktop) -->
+    <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-3 z-40 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
+      <button onclick="switchView('chat')" id="mobileNavChat" class="nav-btn-mobile flex flex-col items-center gap-1 w-16 text-teal-600 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+        <span class="text-[9px] font-bold">Chat</span>
+      </button>
+      <button onclick="switchView('explore')" id="mobileNavExplore" class="nav-btn-mobile flex flex-col items-center gap-1 w-16 text-slate-400 hover:text-teal-600 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span class="text-[9px] font-bold">Explore</span>
+      </button>
+      <button onclick="switchView('profile')" id="mobileNavProfile" class="nav-btn-mobile flex flex-col items-center gap-1 w-16 text-slate-400 hover:text-teal-600 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+        <span class="text-[9px] font-bold">Profile</span>
+      </button>
+      <button id="mobileLogoutBtn" class="flex flex-col items-center gap-1 w-16 text-slate-400 hover:text-rose-500 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        <span class="text-[9px] font-bold">Logout</span>
+      </button>
+    </nav>
+  </div>
+
+  <script>
+    function getUsers() { return JSON.parse(localStorage.getItem('pulseai_users') || '[]'); }
+    function saveUsers(users) { localStorage.setItem('pulseai_users', JSON.stringify(users)); }
+    function hashDemo(pw) { return btoa(pw); } // Demo client-side encoding
+
+    function getCurrentUserEmail() { return localStorage.getItem('pulseai_current') || null; }
+    function setCurrentUser(email) {
+      if (email) localStorage.setItem('pulseai_current', email);
+      else localStorage.removeItem('pulseai_current');
+    }
+
+    function chatKey(email) { return 'pulseai_chat_' + email; }
+    function saveMessageToStorage(email, msgObj) {
+      if (!email) return;
+      const key = chatKey(email);
+      const arr = JSON.parse(localStorage.getItem(key) || '[]');
+      arr.push(msgObj);
+      localStorage.setItem(key, JSON.stringify(arr));
+    }
+    function loadChatFromStorage(email) {
+      if (!email) return [];
+      return JSON.parse(localStorage.getItem(chatKey(email)) || '[]');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      const typeClasses = {
+        success: 'bg-emerald-800 text-white border-emerald-700',
+        error: 'bg-rose-800 text-white border-rose-700',
+        info: 'bg-slate-800 text-white border-slate-700'
+      };
+
+      toast.className = `pointer-events-auto px-4 py-3 rounded-2xl border shadow-xl text-xs font-bold transition-all duration-300 transform translate-y-2 opacity-0 flex items-center justify-between gap-4 ${typeClasses[type] || typeClasses.info}`;
+      toast.innerHTML = `<span>${escapeHtml(message)}</span><button onclick="this.parentElement.remove()" class="text-white/60 hover:text-white">&times;</button>`;
+      
+      container.appendChild(toast);
+      
+      requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    let speechEnabled = true;
+    let currentAudioPlayback = null;
+
+    function playNotificationSound(type = 'receive') {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+
+        if (type === 'send') {
+          osc.frequency.setValueAtTime(440, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.05, ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+          osc.start(); osc.stop(ctx.currentTime + 0.08);
+        } else {
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+          osc.start(); osc.stop(ctx.currentTime + 0.15);
+        }
+      } catch (e) { /* Browser restriction fallback */ }
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binaryString = window.atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
+      return bytes.buffer;
+    }
+
+    function writeString(view, offset, string) {
+      for (let i = 0; i < string.length; i++) { view.setUint8(offset + i, string.charCodeAt(i)); }
+    }
+
+    function pcmToWav(pcm16, sampleRate) {
+      const numChannels = 1;
+      const byteRate = sampleRate * numChannels * 2;
+      const blockAlign = numChannels * 2;
+      const dataSize = pcm16.length * 2;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+      
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(view, 8, 'WAVE');
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, 16, true);
+      writeString(view, 36, 'data');
+      view.setUint32(40, dataSize, true);
+      
+      let offset = 44;
+      for (let i = 0; i < pcm16.length; i++, offset += 2) {
+          view.setInt16(offset, pcm16[i], true);
+      }
+      return new Blob([view], { type: 'audio/wav' });
+    }
+
+    async function speakText(text) {
+      if (!speechEnabled) return;
+      if (currentAudioPlayback) {
+        currentAudioPlayback.pause();
+        currentAudioPlayback = null;
+      }
+
+      try {
+        const cleanText = text.replace(/<[^>]*>?/gm, ''); // strip html
+        const apiKey = ""; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+        
+        const payload = {
+            contents: [{ parts: [{ text: cleanText }] }],
+            generationConfig: {
+                responseModalities: ["AUDIO"],
+                speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } }
+            },
+            model: "gemini-2.5-flash-preview-tts"
+        };
+
+        const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        const part = data?.candidates?.[0]?.content?.parts?.[0];
+
+        if (part && part.inlineData && part.inlineData.mimeType.startsWith("audio/")) {
+            const sampleRate = parseInt(part.inlineData.mimeType.match(/rate=(\d+)/)[1], 10) || 24000;
+            const pcmData = base64ToArrayBuffer(part.inlineData.data);
+            const pcm16 = new Int16Array(pcmData);
+            const wavBlob = pcmToWav(pcm16, sampleRate);
+            const audioUrl = URL.createObjectURL(wavBlob);
+            
+            currentAudioPlayback = new Audio(audioUrl);
+            currentAudioPlayback.play();
+        }
+      } catch (e) {
+        console.error("Gemini TTS Failed, falling back to browser TTS", e);
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text.replace(/<[^>]*>?/gm, ''));
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str && str !== 0) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    async function generateGeminiResponse(prompt, base64Image) {
+      const user = getUsers().find(u => u.email === getCurrentUserEmail()) || {};
+      
+      const systemInstruction = `You are PulseAI, an advanced, empathetic, and highly knowledgeable health & wellness AI assistant.
+User Profile context:
+- Name: ${user.name || 'Unknown'}
+- Age: ${user.age || 'Not specified'}
+- Height: ${user.height ? user.height + ' cm' : 'Not specified'}
+- Weight: ${user.weight ? user.weight + ' kg' : 'Not specified'}
+
+Guidelines:
+1. Provide evidence-based, general wellness, nutrition, and fitness advice tailored to the user's profile context if applicable.
+2. If the user uploads an image (like a rash, wound, food, or nutrition label), objectively describe what you observe before giving general advice.
+3. ALWAYS format your response in clean HTML using tags like <p>, <ul>, <li>, <strong>, <em>, and <br>. DO NOT use markdown code blocks like \`\`\`html.
+4. CRITICAL: Always include a brief, polite medical disclaimer emphasizing that you are an AI, not a doctor, and they should consult a professional for serious concerns.`;
+
+      const rawHistory = loadChatFromStorage(getCurrentUserEmail()) || [];
+      const recentHistory = rawHistory.slice(-10); // Keep context window manageable
+      
+      let contents = recentHistory.map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content.replace(/<[^>]*>?/gm, '') }]
+      }));
+
+      const currentParts = [{ text: prompt }];
+      if (base64Image) {
+          currentParts.push({
+              inlineData: {
+                  mimeType: "image/jpeg", // Assume jpeg for simplicity
+                  data: base64Image
+              }
+          });
+      }
+      contents.push({ role: 'user', parts: currentParts });
+
+      const payload = {
+          systemInstruction: { parts: [{ text: systemInstruction }] },
+          contents: contents,
+      };
+
+      const apiKey = "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) throw new Error("API Request Failed");
+        const data = await response.json();
+        let text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't process that request at this time.";
+        
+        // Clean up markdown block wrapping if accidentally generated
+        return text.replace(/^```html\n?/, '').replace(/\n?```$/, '');
+      } catch (error) {
+        console.error("Gemini API Error:", error);
+        return "<p><strong>Connection Error:</strong> I'm having trouble reaching the knowledge base right now. Please check your connection and try again.</p>";
+      }
+    }
+
+    const authView = document.getElementById('authView');
+    const appView = document.getElementById('app');
+    
+    // Auth elements
+    const signInForm = document.getElementById('signInForm');
+    const signUpForm = document.getElementById('signUpForm');
+    const tabSignIn = document.getElementById('tabSignIn');
+    const tabSignUp = document.getElementById('tabSignUp');
+    const signinError = document.getElementById('signinError');
+    const signinErrorText = document.getElementById('signinErrorText');
+    const signupError = document.getElementById('signupError');
+    const signupErrorText = document.getElementById('signupErrorText');
+    
+    // Chat elements
+    const messagesContainer = document.getElementById('messagesContainer');
+    const typingIndicator = document.getElementById('typingIndicator');
+    const messageInput = document.getElementById('messageInput');
+    const chatForm = document.getElementById('chatForm');
+    
+    // Profile Elements
+    const profileName = document.getElementById('profileName');
+    const profileEmail = document.getElementById('profileEmail');
+    const profileAge = document.getElementById('profileAge');
+    const profileHeight = document.getElementById('profileHeight');
+    const profileWeight = document.getElementById('profileWeight');
+    const saveProfileBtn = document.getElementById('saveProfile');
+    const avatarInput = document.getElementById('avatarInput');
+
+    let selectedImageBase64 = null;
+    document.getElementById('chatImageUpload').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                selectedImageBase64 = event.target.result.split(',')[1];
+                document.getElementById('imagePreview').src = event.target.result;
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    function clearImageSelection() {
+        selectedImageBase64 = null;
+        document.getElementById('chatImageUpload').value = '';
+        document.getElementById('imagePreviewContainer').classList.add('hidden');
+    }
+
+    // Auth Tabs Switch
+    tabSignIn.addEventListener('click', () => {
+      signInForm.classList.remove('hidden'); signUpForm.classList.add('hidden');
+      tabSignIn.classList.add('bg-white', 'text-teal-700', 'shadow-sm'); tabSignIn.classList.remove('text-slate-500', 'bg-transparent');
+      tabSignUp.classList.remove('bg-white', 'text-teal-700', 'shadow-sm'); tabSignUp.classList.add('text-slate-500', 'bg-transparent');
+    });
+    tabSignUp.addEventListener('click', () => {
+      signInForm.classList.add('hidden'); signUpForm.classList.remove('hidden');
+      tabSignUp.classList.add('bg-white', 'text-teal-700', 'shadow-sm'); tabSignUp.classList.remove('text-slate-500', 'bg-transparent');
+      tabSignIn.classList.remove('bg-white', 'text-teal-700', 'shadow-sm'); tabSignIn.classList.add('text-slate-500', 'bg-transparent');
+    });
+
+    document.getElementById('demoBtn').addEventListener('click', () => {
+      const users = getUsers();
+      if (!users.find(u => u.email === 'demo@pulse.ai')) {
+        users.push({ name: 'Demo Patient', email: 'demo@pulse.ai', password: hashDemo('demo123'), age: '30', height: '175', weight: '70' });
+        saveUsers(users);
+      }
+      document.getElementById('signinEmail').value = 'demo@pulse.ai';
+      document.getElementById('signinPassword').value = 'demo123';
+      showToast('Demo login details filled!', 'info');
+    });
+
+    signInForm.addEventListener('submit', (e) => {
+      e.preventDefault(); signinError.classList.add('hidden');
+      const email = document.getElementById('signinEmail').value.trim().toLowerCase();
+      const pw = document.getElementById('signinPassword').value;
+      const user = getUsers().find(u => u.email === email && u.password === hashDemo(pw));
+      
+      if (!user) {
+        signinErrorText.textContent = 'Invalid email address or password.';
+        signinError.classList.remove('hidden'); return;
+      }
+      setCurrentUser(email); showAppForUser(email); showToast('Signed in successfully!', 'success');
+    });
+
+    signUpForm.addEventListener('submit', (e) => {
+      e.preventDefault(); signupError.classList.add('hidden');
+      const name = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+      const pw = document.getElementById('signupPassword').value;
+      const confirm = document.getElementById('signupConfirm').value;
+
+      if (pw !== confirm) { signupErrorText.textContent = 'Passwords do not match.'; signupError.classList.remove('hidden'); return; }
+      const users = getUsers();
+      if (users.find(u => u.email === email)) { signupErrorText.textContent = 'Email address already registered.'; signupError.classList.remove('hidden'); return; }
+
+      users.push({ name, email, password: hashDemo(pw) });
+      saveUsers(users); setCurrentUser(email); showAppForUser(email); showToast('Account created successfully!', 'success');
+    });
+
+    // Logout handlers
+    const handleLogout = () => {
+      setCurrentUser(null);
+      appView.classList.add('hidden');
+      authView.style.opacity = '0';
+      authView.classList.remove('hidden');
+      setTimeout(() => authView.style.opacity = '1', 10);
+      showToast('Signed out', 'info');
+    };
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+    document.getElementById('mobileLogoutBtn').addEventListener('click', handleLogout);
+
+    function switchView(viewId) {
+      // Hide all views
+      ['chatView', 'exploreView', 'profileView'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      // Show target view
+      document.getElementById(viewId + 'View').classList.remove('hidden');
+      document.getElementById('currentViewTitle').textContent = viewId.charAt(0).toUpperCase() + viewId.slice(1);
+      
+      // Update Nav active states
+      ['Chat', 'Explore', 'Profile'].forEach(id => {
+        const desktopBtn = document.getElementById(`nav${id}Btn`);
+        const mobileBtn = document.getElementById(`mobileNav${id}`);
+        const isMatch = id.toLowerCase() === viewId;
+        
+        // Desktop styles
+        if(isMatch) {
+          desktopBtn.classList.remove('text-slate-400', 'hover:text-teal-600', 'hover:bg-slate-50');
+          desktopBtn.classList.add('text-teal-600', 'bg-teal-50');
+          mobileBtn.classList.remove('text-slate-400');
+          mobileBtn.classList.add('text-teal-600');
+        } else {
+          desktopBtn.classList.add('text-slate-400', 'hover:text-teal-600', 'hover:bg-slate-50');
+          desktopBtn.classList.remove('text-teal-600', 'bg-teal-50');
+          mobileBtn.classList.add('text-slate-400');
+          mobileBtn.classList.remove('text-teal-600');
+        }
+      });
+      
+      if(viewId === 'chat') { messagesContainer.scrollTop = messagesContainer.scrollHeight; }
+      if(viewId === 'profile') { populateProfileView(); }
+    }
+
+    function exploreToChat(query) {
+      switchView('chat');
+      askQuestion(query);
+    }
+
+    function showAppForUser(email) {
+      const user = getUsers().find(u => u.email === email);
+      if (!user) return;
+
+      authView.style.opacity = '0';
+      setTimeout(() => {
+        authView.classList.add('hidden');
+        appView.classList.remove('hidden');
+        switchView('chat');
+      }, 300);
+
+      document.getElementById('subTitle').textContent = `Signed in as ${user.name}`;
+      updateAllAvatars(user);
+      
+      // Load Chat
+      messagesContainer.innerHTML = '';
+      const history = loadChatFromStorage(email);
+      if (!history || history.length === 0) {
+        addMessage(`Hello ${user.name || ''}! I'm PulseAI, your personal health assistant.<br>I can provide evidence-based info on wellness, habits, and symptoms.<br><br>How can I assist you today?`, false, { save: true, ts: Date.now() });
+      } else {
+        history.forEach(m => addMessage(m.content, m.sender === 'user', { save: false, ts: m.ts }));
+      }
+      
+      populateProfileView();
+    }
+
+    function updateAllAvatars(user) {
+      const initial = (user.name || 'P')[0].toUpperCase();
+      const elements = [
+        { text: document.getElementById('avatarInitial'), img: document.getElementById('headerAvatarImg') },
+        { text: document.getElementById('profileAvatarInitial'), img: document.getElementById('profileAvatarImg') }
+      ];
+
+      elements.forEach(el => {
+        if (user.avatarDataUrl) {
+          el.img.src = user.avatarDataUrl;
+          el.img.classList.remove('hidden');
+          el.text.classList.add('hidden');
+        } else {
+          el.text.textContent = initial;
+          el.text.classList.remove('hidden');
+          el.img.classList.add('hidden');
+        }
+      });
+    }
+
+    avatarInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const email = getCurrentUserEmail();
+          const users = getUsers();
+          const user = users.find(u => u.email === email);
+          if (user) {
+            user.avatarDataUrl = event.target.result;
+            saveUsers(users);
+            updateAllAvatars(user);
+            showToast('Profile photo updated', 'success');
+          }
+        };
+        reader.readAsDataURL(file); // Note: Simple demo logic. Large files may exceed quota.
+      }
+    });
+
+    function populateProfileView() {
+      const user = getUsers().find(u => u.email === getCurrentUserEmail());
+      if (!user) return;
+      profileName.value = user.name || '';
+      profileEmail.value = user.email || '';
+      profileAge.value = user.age || '';
+      profileHeight.value = user.height || '';
+      profileWeight.value = user.weight || '';
+      updateBMIWidget(user.height, user.weight);
+    }
+
+    saveProfileBtn.addEventListener('click', () => {
+      const email = getCurrentUserEmail();
+      const users = getUsers();
+      const user = users.find(u => u.email === email);
+      if (user) {
+        user.name = profileName.value.trim() || user.name;
+        user.age = profileAge.value.trim();
+        user.height = profileHeight.value.trim();
+        user.weight = profileWeight.value.trim();
+        saveUsers(users);
+        
+        document.getElementById('subTitle').textContent = `Signed in as ${user.name}`;
+        updateAllAvatars(user);
+        updateBMIWidget(user.height, user.weight);
+        showToast('Profile saved successfully', 'success');
+      }
+    });
+
+    function updateBMIWidget(h, w) {
+      const display = document.getElementById('bmiValueDisplay');
+      const category = document.getElementById('bmiCategoryDisplay');
+      const advice = document.getElementById('bmiAdviceDisplay');
+      const ring = document.getElementById('bmiDisplayRing');
+
+      const heightCm = parseFloat(h);
+      const weightKg = parseFloat(w);
+
+      if (isNaN(heightCm) || isNaN(weightKg) || heightCm <= 0 || weightKg <= 0) {
+        display.textContent = "--";
+        category.textContent = "Not Calculated";
+        advice.textContent = "Save your height and weight to see your Body Mass Index insights.";
+        ring.className = "w-32 h-32 rounded-full border-4 border-slate-700 flex flex-col items-center justify-center mb-4 transition-colors duration-500";
+        return;
+      }
+
+      const heightM = heightCm / 100;
+      const bmi = (weightKg / (heightM * heightM)).toFixed(1);
+      display.textContent = bmi;
+
+      let catText, adviceText, colorClass;
+      if (bmi < 18.5) {
+        catText = 'Underweight'; colorClass = 'border-amber-400';
+        adviceText = "Consider focusing on nutrient-dense foods like nuts, avocados, and lean proteins.";
+      } else if (bmi >= 18.5 && bmi < 24.9) {
+        catText = 'Healthy Weight'; colorClass = 'border-emerald-400';
+        adviceText = "Great job! Keep up your current balanced diet and exercise routine to maintain your wellbeing.";
+      } else if (bmi >= 25 && bmi < 29.9) {
+        catText = 'Overweight'; colorClass = 'border-amber-400';
+        adviceText = "Consider integrating more whole foods and at least 150 minutes of moderate exercise into your week.";
+      } else {
+        catText = 'Obese'; colorClass = 'border-rose-500';
+        adviceText = "Maintaining a healthy weight prevents cardiovascular issues. Please consult a doctor for a tailored plan.";
+      }
+
+      category.textContent = catText;
+      advice.textContent = adviceText;
+      ring.className = `w-32 h-32 rounded-full border-4 flex flex-col items-center justify-center mb-4 transition-colors duration-500 shadow-[0_0_20px_rgba(0,0,0,0.3)] ${colorClass}`;
+    }
+
+
+    function addMessage(content, isUser = false, opts = {}) {
+      const ts = opts.ts || Date.now();
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flex items-start gap-3 message-enter w-full';
+
+      const formattedTime = new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const user = getUsers().find(u => u.email === getCurrentUserEmail()) || {};
+      const initial = (user.name || 'U')[0].toUpperCase();
+      
+      const avatarHtml = user.avatarDataUrl 
+        ? `<img src="${user.avatarDataUrl}" class="w-8 h-8 rounded-xl object-cover shadow-sm flex-shrink-0" />`
+        : `<div class="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center flex-shrink-0 font-bold text-xs shadow-sm">${initial}</div>`;
+
+      if (isUser) {
+        wrapper.className += ' justify-end';
+        wrapper.innerHTML = `
+          <div class="flex flex-col items-end max-w-[85%] sm:max-w-md">
+            <div class="bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-2xl rounded-tr-sm p-3.5 shadow-md text-sm leading-relaxed">
+              <p class="whitespace-pre-wrap">${escapeHtml(content)}</p>
+            </div>
+            <span class="text-[10px] text-slate-400 mt-1 mr-1">${formattedTime}</span>
+          </div>
+          ${avatarHtml}`;
+      } else {
+        wrapper.innerHTML = `
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+          </div>
+          <div class="flex flex-col items-start max-w-[85%] sm:max-w-lg">
+            <div class="bg-white text-slate-800 border border-slate-200/60 rounded-2xl rounded-tl-sm p-4 shadow-sm text-sm leading-relaxed">
+              <div>${content}</div>
+            </div>
+            <span class="text-[10px] text-slate-400 mt-1 ml-1">${formattedTime}</span>
+          </div>`;
+      }
+
+      messagesContainer.appendChild(wrapper);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+      if (opts.save !== false && getCurrentUserEmail()) {
+        saveMessageToStorage(getCurrentUserEmail(), { sender: isUser ? 'user' : 'bot', content, ts });
+      }
+    }
+
+    function showTyping() { typingIndicator.classList.add('show'); messagesContainer.scrollTop = messagesContainer.scrollHeight; }
+    function hideTyping() { typingIndicator.classList.remove('show'); }
+
+    function askQuestion(text) {
+      messageInput.value = text;
+      chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+    }
+
+    chatForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const message = messageInput.value.trim();
+      const hasImage = !!selectedImageBase64;
+      
+      if (!message && !hasImage) return;
+
+      // Display user message
+      let displayMessage = message || "Sent an image for analysis.";
+      if (hasImage) {
+         const imgSrc = document.getElementById('imagePreview').src;
+         displayMessage = `<div class="mb-2"><img src="${imgSrc}" class="w-32 rounded-lg border border-white/20 shadow-sm" /></div>` + displayMessage;
+      }
+
+      addMessage(displayMessage, true, { save: true });
+      playNotificationSound('send');
+      
+      const promptToUse = message || "Please analyze this image and tell me what you see from a health/wellness perspective.";
+      const imageToUse = selectedImageBase64;
+      
+      // Clear inputs
+      messageInput.value = '';
+      clearImageSelection();
+      showTyping();
+
+      // Call Gemini API
+      const botResponse = await generateGeminiResponse(promptToUse, imageToUse);
+      
+      hideTyping();
+      addMessage(botResponse, false, { save: true });
+      playNotificationSound('receive');
+      speakText(botResponse);
+    });
+
+    document.getElementById('speechToggleBtn').addEventListener('click', () => {
+      speechEnabled = !speechEnabled;
+      const icon = document.getElementById('speechIcon');
+      if (speechEnabled) {
+        icon.classList.remove('text-slate-400'); icon.classList.add('text-teal-600');
+        showToast('Voice readouts enabled', 'info');
+      } else {
+        icon.classList.remove('text-teal-600'); icon.classList.add('text-slate-400');
+        window.speechSynthesis.cancel(); showToast('Voice readouts muted', 'info');
+      }
+    });
+
+    // Water Tracker
+    let currentWater = 4;
+    function adjustWater(delta) {
+      currentWater = Math.max(0, Math.min(8, currentWater + delta));
+      document.getElementById('waterGlassCount').textContent = `${currentWater} / 8`;
+      document.getElementById('waterProgressBar').style.width = `${(currentWater / 8) * 100}%`;
+    }
+
+    // Export Data
+    document.getElementById('downloadData').addEventListener('click', () => {
+      const email = getCurrentUserEmail(); if (!email) return;
+      const user = getUsers().find(u => u.email === email);
+      const chats = loadChatFromStorage(email) || [];
+      const exportObj = { app: 'PulseAI', exportedAt: new Date().toISOString(), profile: user, chats: chats };
+      const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `pulseai_${email.replace(/[@.]/g, '_')}_data.json`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      showToast('Exported JSON data', 'success');
+    });
+
+    // Init App
+    (function init() {
+      const current = getCurrentUserEmail();
+      if (current && getUsers().find(u => u.email === current)) {
+        authView.classList.add('hidden');
+        appView.classList.remove('hidden');
+        showAppForUser(current);
+      } else {
+        setCurrentUser(null);
+        authView.classList.remove('hidden');
+      }
+    })();
+  </script>
+</body>
+</html>
